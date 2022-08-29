@@ -119,18 +119,68 @@ namespace NSJSDiscordBot.Commands
             await ctx.RespondAsync(embed);
         }
 
-        [Command("ban"), Description("Bans a user with optional reason"), RequireGuild, RequirePermissions(Permissions.BanMembers)]
+        [Command("ban"), RequireGuild, Description("Bans a user with optional reason"), RequirePermissions(Permissions.BanMembers)]
         public async Task Test(CommandContext ctx, DiscordMember member, [RemainingText] string reason)
         {
             await ctx.TriggerTypingAsync();
 
             try
             {
+                bool isStaff = false;
+                foreach (DiscordRole role in member.Roles)
+                {
+                    switch (role.Id)
+                    {
+                        default:
+                            break;
+                        case 983400691777294396:
+                            isStaff = true;
+                            break;
+                        case 981206652927742003:
+                            isStaff = true;
+                            break;
+                    }
+                }
+                if (ctx.Member == member || member.Id == 1009152549389082696) // safe guard to pervent self banning and bot banning. bot id 1009152549389082696.
+                {
+                    await ctx.Channel.SendMessageAsync("You cannot ban me or yourself");
+                    await ctx.Guild.GetChannel(1008824886678016001).SendMessageAsync($"**Attention!**\n{ctx.Member.Mention} ({ctx.Member.Id})" +
+                        $"\nTried to ban:\n{member.Mention} ({member.Id})\n\n**Faluire:**\nattempted to ban themselfs or the bot");
+                    return;
+                }
+                else if (isStaff && (ctx.Member.Hierarchy <= member.Hierarchy) && member.Permissions == Permissions.All) // if the mentioned user is staff and the message
+                                                                                                                         // sender is a lower hierarchywhile they have all permissions
+                                                                                                                         // then the ban will be void.
+                {
+                    await ctx.Channel.SendMessageAsync("This is a staff member! (Aministrator overide: failed! You lack the hiarchy posision)");
+                    await ctx.Guild.GetChannel(1008824886678016001).SendMessageAsync($"**Attention!**\n{ctx.Member.Mention} ({ctx.Member.Id})" +
+                        $"\nTried to ban:\n{member.Mention} ({member.Id})\n\n**Faluire:**\nHiarchy permission is lower or equal to Member");
+                    return;
+                }
+                else if (isStaff && member.Permissions == Permissions.All) // if the mentioned user is staff and the message sender has all perms then the user will be banned.
+                {
+                    await ctx.Channel.SendMessageAsync("This is a staff member! (Aministrator overide: user will be banned)");
+                }
+                else if (isStaff && member.Permissions != Permissions.All) // if the mentioned user is staff and they do not have all permissions the user cannot be banned.
+                {
+                    await ctx.Channel.SendMessageAsync("This is a staff member! You lack the permissions to ban the user");
+                    await ctx.Guild.GetChannel(1008824886678016001).SendMessageAsync($"**Attention!**\n{ctx.Member.Mention} ({ctx.Member.Id})" +
+                        $"\nTried to ban:\n{member.Mention} ({member.Id})\n\n**Faluire:**\nNot an Administrator");
+                    return;
+                }
+                else if (!isStaff) // if the @user is not staff let them know they will be banned.
+                {
+                    await ctx.Channel.SendMessageAsync("User will be banned!");
+                }
+
+
                 // audit logs who made the ban.
                 await member.ModifyAsync(x =>
                 {
                     x.AuditLogReason = $"Member banned {member.Username} by {ctx.User.Username} ({ctx.User.Id}) for the reason {reason}.";
                 });
+
+                if (reason == null) reason = "**No Reason Specified**";
 
                 //await ctx.Guild.BanMemberAsync(member.Id, 0, reason);
                 await ctx.RespondAsync("Banning is disabled");
@@ -170,50 +220,99 @@ namespace NSJSDiscordBot.Commands
             }
         }
 
-        [Command("info")]
-        [Description("Get the info for a user, such as permissions")]
+        [Command("info"), RequireGuild, Description("Get the info for a user, such as permissions")]
         public async Task Info(CommandContext ctx, [Description("member to look up.")] DiscordMember member)
         {
-            DiscordEmbedBuilder builder = new DiscordEmbedBuilder
-            {
-                Title = member.DisplayName,
-                Description = "permissions: \n" + member.Permissions + "\n" + member.JoinedAt,
-                Thumbnail = new DiscordEmbedBuilder.EmbedThumbnail
-                {
-                    Url = member.AvatarUrl
-                }
-            };
+            await ctx.TriggerTypingAsync();
 
-            await ctx.RespondAsync(builder);
-        }
-        [Command("info"), RequireGuild]
-        [Description("Get the info for a user, such as permissions")]
-        public async Task Info(CommandContext ctx)
-        {
-            DiscordEmbedBuilder builder = new DiscordEmbedBuilder
+            try
             {
-                Title = ctx.Member.DisplayName,
-                Description = "permissions: \n" + ctx.Member.Permissions + "\n" + ctx.Member.JoinedAt,
-                Thumbnail = new DiscordEmbedBuilder.EmbedThumbnail
-                {
-                    Url = ctx.Member.AvatarUrl
-                }
-            };
+                string mention = "";
+                foreach (DiscordRole role in member.Roles)
+                    mention += role.Mention + ", ";
 
-            await ctx.RespondAsync(builder);
+                bool isStaff = false;
+                foreach (DiscordRole role in member.Roles)
+                {
+                    switch (role.Id)
+                    {
+                        default:
+                            break;
+                        case 983400691777294396:
+                            isStaff = true;
+                            break;
+                        case 981206652927742003:
+                            isStaff = true;
+                            break;
+                    }
+                }
+
+                bool isMember = false;
+                foreach (DiscordRole role in member.Roles)
+                    if (role.Id == 998906377755959346) isMember = true;
+
+                bool isTicketSupport = false;
+                foreach (DiscordRole role in member.Roles)
+                    if (role.Id == 1009117505488433234) isTicketSupport = true;
+
+                string punishments = "";
+                foreach (DiscordRole role in member.Roles)
+                {
+                    switch (role.Id)
+                    {
+                        default:
+                            punishments += "";
+                            break;
+                        case 1008014112900530307:
+                            punishments += "User is banned from making tickets, ";
+                            break;
+                        case 1009085467716767814:
+                            punishments += $"User is muted with {ctx.Guild.GetRole(1009085467716767814).Mention}, ";
+                            break;
+                    }
+                }
+                if (member.IsMuted) punishments += "User is server muted, ";
+                if (member.IsDeafened) punishments += "User is meaden, ";
+                if (punishments == "") punishments += "No current punishment(s); ";
+
+                DiscordEmbedBuilder builder = new DiscordEmbedBuilder
+                {
+                    Title = $"{member.DisplayName} ({member.Id})",
+                    Color = member.Color,
+                    Description = $"**permissions:** \n{member.Permissions} \n\n**Roles:** \n{mention}\n\n**bools:** \nStaff: {isStaff}, Member: {isMember}, Robot: {member.IsBot}, " +
+                    $"Ticket Support: {isTicketSupport}" +
+                    $"\n\n**Punishments:** {punishments}",
+                    Thumbnail = new DiscordEmbedBuilder.EmbedThumbnail
+                    {
+                        Url = member.AvatarUrl
+                    },
+                    Footer = new DiscordEmbedBuilder.EmbedFooter
+                    {
+                        Text = $"Joined at: {member.JoinedAt}"
+                    }
+                };
+
+                await ctx.RespondAsync(builder);
+            }
+            catch (Exception)
+            {
+                // oh no, something failed, let the invoker now
+                var emoji = DiscordEmoji.FromName(ctx.Client, ":-1:");
+                await ctx.RespondAsync(emoji);
+            }
         }
     }
 
-    //[Group("admin")] // let's mark this class as a command group
-    //[Description("Administrative commands.")] // give it a description for help purposes
-    [Hidden] // let's hide this from the eyes of curious users
+    [Group("admin")] // let's mark this class as a command group
+    [Description("Administrative commands.")] // give it a description for help purposes
+    //[Hidden] // let's hide this from the eyes of curious users
     [RequirePermissions(Permissions.ManageGuild)] // and restrict this to users who have appropriate permissions
     public class AdminCommands : BaseCommandModule
     {
         // all the commands will need to be executed as <prefix>admin <command> <arguments>
 
         // this command will be only executable by the bot's owner
-        [Command("sudo"), Description("Executes a command as another user."), Hidden, RequireOwner]
+        [Command("sudo"), Description("Executes a command as another user."), RequireOwner]
         public async Task Sudo(CommandContext ctx, [Description("Member to execute as.")] DiscordMember member, [RemainingText, Description("Command text to execute.")] string command)
         {
             // note the [RemainingText] attribute on the argument.

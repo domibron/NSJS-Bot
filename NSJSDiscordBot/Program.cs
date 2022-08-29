@@ -199,7 +199,7 @@ namespace NSJSDiscordBot
                 var embed = new DiscordEmbedBuilder
                 {
                     Title = "Access denied",
-                    Description = $"{emoji} You do not have the permissions required to execute this command.",
+                    Description = $"{emoji} You do not have the permissions required to execute this command.", //{e.Exception.InnerException}
                     Color = new DiscordColor(0xFF0000) // red
                 };
                 await e.Context.RespondAsync(embed);
