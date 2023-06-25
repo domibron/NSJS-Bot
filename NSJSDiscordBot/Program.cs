@@ -35,9 +35,26 @@ using System.Security.Authentication;
 
 namespace NSJSDiscordBot
 {
-    public class CoreData
+
+    public static class CoreData
     {
-        public string DiscordToken = "YOUR TOKEN HERE";
+        public static ConfigJson configJson { get; set; }
+        public static string DiscordToken = "YOUR TOKEN HERE";
+        public static string Prefix = "PREFIX";
+    }
+
+    public class StoreData
+    {
+        public static List<string> messages = new List<string>();
+        public static List<TimeSpan?> times = new List<TimeSpan?>();
+        public static InteractionContext lctx = new InteractionContext();
+
+        public static void StoreValue(string msg, TimeSpan? timespan)
+        {
+            Program.storejson.Time.Add(timespan);
+            Program.storejson.Message.Add(msg);
+            Console.WriteLine(Program.storejson.Message[1] + " " + Program.storejson.Time[1]);
+        }
     }
 
     public class Program
@@ -54,12 +71,122 @@ namespace NSJSDiscordBot
 
         public ConfigJson cfgjson;
 
+        public static StoreJson storejson;
+
+        //public static CoreData coreData = new CoreData();
+
         public static void Main(string[] args)
         {
             // since we cannot make the entry method asynchronous,
             // let's pass the execution to asynchronous code
             var prog = new Program();
+            prog.Update();
             prog.RunBotAsync().GetAwaiter().GetResult();
+        }
+
+        public async void Update()
+        {
+            var json = "";
+            try
+            {
+                Console.WriteLine("ATTEMPTING TO OPEN STORE...");
+                using (var fs = File.OpenRead("store.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = await sr.ReadToEndAsync();
+            }
+            catch
+            {
+                Console.WriteLine("FALIURE IN UPDATE!");
+                using (var fc = File.Create("store.json"))
+                    fc.Close();
+                using (var fs = File.OpenRead("store.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = await sr.ReadToEndAsync();
+
+                StringBuilder strb = new StringBuilder(); //<-- important for writing to file
+                StringWriter strw = new StringWriter(strb);
+
+                using (JsonWriter writer = new JsonTextWriter(strw))
+                {
+                    writer.Formatting = Formatting.Indented;
+
+                    await writer.WriteStartObjectAsync();
+                    await writer.WritePropertyNameAsync("Message");
+                    await writer.WriteStartArrayAsync();
+                    await writer.WriteValueAsync("A MESSAGE");
+                    await writer.WriteEndAsync();
+                    await writer.WritePropertyNameAsync("Time");
+                    await writer.WriteStartArrayAsync();
+                    await writer.WriteValueAsync("11:11:00");
+                    await writer.WriteEndAsync();
+                    await writer.WriteEndObjectAsync();
+                }
+
+                using (var fs = File.OpenWrite("store.json"))
+                using (var aasds = new StreamWriter(fs, new UTF8Encoding(false)))
+                    await aasds.WriteAsync(strb);
+
+                using (var fs = File.OpenRead("store.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = await sr.ReadToEndAsync();
+            }
+
+            try
+            {
+                Console.WriteLine("ATTEMPTING TO STORE STORE...");
+                storejson = JsonConvert.DeserializeObject<StoreJson>(json);
+            }
+            catch
+            {
+                Console.WriteLine("FALIURE ATTEMPTING TO STORE STORE...");
+                using (var fs = File.OpenRead("store.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = await sr.ReadToEndAsync();
+
+                //storejson = JsonConvert.DeserializeObject<StoreJson>(json);
+
+            }
+
+            try
+            {
+                StoreData.times = storejson.Time;
+                StoreData.messages = storejson.Message;
+            }
+            catch 
+            {
+                Console.WriteLine("UH OH");
+                System.Environment.FailFast("FAILURE AT STORE.JSON");
+            }
+
+            while (true)
+            {
+                for (int i = 0; i < storejson.Time.Count; i++)
+                {
+                    if (storejson.Time[i].Value.Hours == DateTime.Now.TimeOfDay.Hours && storejson.Time[i].Value.Minutes == DateTime.Now.TimeOfDay.Minutes)
+                    {
+                        DiscordChannel dc = await Client.GetChannelAsync(994362031488643204);
+                        await Client.SendMessageAsync(dc, storejson.Message[i]);
+
+                        // remove from data
+                        TimeSpan? timeSpanToRemove = storejson.Time[i];
+                        string messageToRemove = storejson.Message[i];
+                        storejson.Time.Remove(timeSpanToRemove);
+                        storejson.Message.Remove(messageToRemove);
+
+                    }
+                    //try // I am calling data that is not there, should immidetly back out after deletion.
+                    //{
+                    //    Console.WriteLine(storejson.Time[i].Value + " vs " + DateTime.Now.TimeOfDay);
+                    //}
+                    //catch(ArgumentOutOfRangeException)
+                    //{
+                    //    Console.WriteLine("Ill go fuck my self then");
+                    //}
+                }
+
+
+
+            }
         }
 
         public async Task RunBotAsync()
@@ -113,6 +240,10 @@ namespace NSJSDiscordBot
             try
             {
                 cfgjson = JsonConvert.DeserializeObject<ConfigJson>(json);
+                
+                CoreData.configJson = cfgjson;
+                CoreData.DiscordToken = "REDACTED";
+                CoreData.Prefix = cfgjson.CommandPrefix;
             }
             catch
             {
@@ -124,6 +255,10 @@ namespace NSJSDiscordBot
                 try
                 {
                     cfgjson = JsonConvert.DeserializeObject<ConfigJson>(json);
+
+                    CoreData.configJson = cfgjson;
+                    CoreData.DiscordToken = "REDACTED";
+                    CoreData.Prefix = cfgjson.CommandPrefix;
                 }
                 catch
                 {
@@ -206,7 +341,7 @@ namespace NSJSDiscordBot
                 await this.Client.ConnectAsync();
             }
             catch
-            { 
+            {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("You need a valid discord token!");
                 System.Environment.Exit(1);
@@ -273,7 +408,7 @@ namespace NSJSDiscordBot
 
             // let's check if the error is a result of lack
             // of required permissions
-            if (e.Exception is ChecksFailedException ex)
+            if (e.Exception is ChecksFailedException)
             {
                 // yes, the user lacks required permissions, 
                 // let them know
@@ -289,6 +424,18 @@ namespace NSJSDiscordBot
                 };
                 await e.Context.RespondAsync(embed);
             }
+            else if (e.Exception is CommandNotFoundException)
+            {
+                var emoji = DiscordEmoji.FromName(e.Context.Client, ":shrug:");
+
+                var embed = new DiscordEmbedBuilder
+                {
+                    Title = "Unkown command",
+                    Description = $"{emoji} I do not reconise this command. perhaps you typed it wrong?", //{e.Exception.InnerException}
+                    Color = new DiscordColor(0xF0FC03)
+                };
+                await e.Context.RespondAsync(embed);
+            }
         }
     }
 
@@ -300,5 +447,14 @@ namespace NSJSDiscordBot
 
         [JsonProperty("prefix")]
         public string CommandPrefix { get; private set; }
+    }
+
+    public struct StoreJson
+    {
+        [JsonProperty("message")]
+        public List<string> Message { get; private set; }
+
+        [JsonProperty("time")]
+        public List<TimeSpan?> Time { get; private set; }
     }
 }

@@ -23,15 +23,18 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.Net;
 using DSharpPlus.SlashCommands;
 using DSharpPlus.VoiceNext;
+using System.Security;
+using Emzi0767.Utilities;
 
 namespace NSJSDiscordBot.Commands
 {
     public class SlashCommands : ApplicationCommandModule
-    {   
+    {
         [SlashCommand("help", "get some help")]
         public async Task Help(InteractionContext ctx)
         {
-            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("use !help"));
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"use {CoreData.Prefix}help"));
+            StoreData.lctx = ctx;
         }
 
         [SlashCommand("ban", "This bans a user, as long you have the permissions")]
@@ -81,6 +84,17 @@ namespace NSJSDiscordBot.Commands
                 var emoji = DiscordEmoji.FromName(ctx.Client, ":-1:");
                 await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent(emoji));
             }
+        }
+
+        // [Option("Hour", "The hour to be sent on")] int hour, [Option("Minute", "The minute to be sent on")] int minute
+
+        [SlashCommand("TimedMessage", "Delay a message that is to be sent")]
+        [RequireGuild]
+        public async Task TimedMessage(InteractionContext ctx, [Option("Mesage", "The string message")] string message, [Option("Time", "The string message")] TimeSpan? time)
+        {
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"{ctx.User} {time} {message}"));
+
+            StoreData.StoreValue(message, time);
         }
     }
 
@@ -273,7 +287,7 @@ namespace NSJSDiscordBot.Commands
                     }
                 }
                 if (member.IsMuted) punishments += "User is server muted, ";
-                if (member.IsDeafened) punishments += "User is meaden, ";
+                if (member.IsDeafened) punishments += "User is server deafened, ";
                 if (punishments == "") punishments += "No current punishment(s); ";
 
                 DiscordEmbedBuilder builder = new DiscordEmbedBuilder

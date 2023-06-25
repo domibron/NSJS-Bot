@@ -6,6 +6,17 @@ using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Converters;
 using DSharpPlus.CommandsNext.Entities;
 using DSharpPlus.Entities;
+using DSharpPlus.Interactivity;
+using DSharpPlus.SlashCommands;
+
+using DSharpPlus.CommandsNext.Attributes;
+using DSharpPlus.CommandsNext.Builders;
+using DSharpPlus.CommandsNext.Exceptions;
+using DSharpPlus.CommandsNext.Executors;
+using DSharpPlus.EventArgs;
+using DSharpPlus.Exceptions;
+using DSharpPlus.Net;
+using DSharpPlus.VoiceNext;
 
 namespace NSJSDiscordBot
 {
