@@ -31,10 +31,15 @@ using DSharpPlus.SlashCommands;
 using DSharpPlus.VoiceNext;
 
 using NSJSDiscordBot.Commands;
-
+using System.Security.Authentication;
 
 namespace NSJSDiscordBot
 {
+    public class CoreData
+    {
+        public string DiscordToken = "YOUR TOKEN HERE";
+    }
+
     public class Program
     {
         public readonly EventId BotEventId = new EventId(42, "Bot-Ex01");
@@ -44,6 +49,10 @@ namespace NSJSDiscordBot
         public CommandsNextExtension Commands { get; set; }
 
         public SlashCommandsExtension Slash { get; set; }
+
+        public DiscordConfiguration cfg;
+
+        public ConfigJson cfgjson;
 
         public static void Main(string[] args)
         {
@@ -57,14 +66,76 @@ namespace NSJSDiscordBot
         {
             // first, let's load our configuration file
             var json = "";
-            using (var fs = File.OpenRead("config.json"))
-            using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
-                json = await sr.ReadToEndAsync();
+            try
+            {
+                Console.WriteLine("Attempting to open settings...");
+                using (var fs = File.OpenRead("config.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = await sr.ReadToEndAsync();
+            }
+            catch
+            {
+                Console.WriteLine("Failure to load, creating...");
+                using (var fc = File.Create("config.json"))
+                    fc.Close();
+                using (var fs = File.OpenRead("config.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = await sr.ReadToEndAsync();
+
+                StringBuilder sb = new StringBuilder(); // important
+                StringWriter sw = new StringWriter(sb);
+
+                using (JsonWriter writer = new JsonTextWriter(sw))
+                {
+                    writer.Formatting = Formatting.Indented;
+
+                    await writer.WriteStartObjectAsync();
+                    await writer.WritePropertyNameAsync("Token");
+                    await writer.WriteValueAsync("null");
+                    await writer.WritePropertyNameAsync("Prefix");
+                    await writer.WriteValueAsync("null");
+                    await writer.WriteEndObjectAsync();
+                }
+
+                using (var fs = File.OpenWrite("config.json"))
+                using (var aasds = new StreamWriter(fs, new UTF8Encoding(false)))
+                    await aasds.WriteAsync(sb);
+
+                using (var fs = File.OpenRead("config.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = await sr.ReadToEndAsync();
+
+            }
+
 
             // next, let's load the values from that file
             // to our client's configuration
-            var cfgjson = JsonConvert.DeserializeObject<ConfigJson>(json);
-            var cfg = new DiscordConfiguration
+            try
+            {
+                cfgjson = JsonConvert.DeserializeObject<ConfigJson>(json);
+            }
+            catch
+            {
+                Console.WriteLine("Failure to read...");
+                using (var fs = File.OpenRead("config.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    json = await sr.ReadToEndAsync();
+
+                try
+                {
+                    cfgjson = JsonConvert.DeserializeObject<ConfigJson>(json);
+                }
+                catch
+                {
+                    Console.WriteLine("FALIURE");
+                    System.Environment.FailFast("FAILURE, NRE OCCURED! saved your comuper :)");
+                }
+            }
+
+            Console.WriteLine("NO FALIURE");
+
+
+            cfg = new DiscordConfiguration
             {
                 Token = cfgjson.Token,
                 TokenType = TokenType.Bot,
@@ -75,6 +146,7 @@ namespace NSJSDiscordBot
                 Intents = DiscordIntents.All
             };
 
+            Console.WriteLine("SUCCESS");
 
             // then we want to instantiate our client
             this.Client = new DiscordClient(cfg);
@@ -129,10 +201,23 @@ namespace NSJSDiscordBot
             this.Commands.SetHelpFormatter<SimpleHelpFormatter>();
 
             // finally, let's connect and log in
-            await this.Client.ConnectAsync();
+            try
+            {
+                await this.Client.ConnectAsync();
+            }
+            catch
+            { 
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("You need a valid discord token!");
+                System.Environment.Exit(1);
+            }
+
+            Console.WriteLine("BOT READY?");
 
             // and this is to prevent premature quitting
             await Task.Delay(-1);
+
+            Console.WriteLine("YES");
         }
 
         private Task Client_Ready(DiscordClient sender, ReadyEventArgs e)

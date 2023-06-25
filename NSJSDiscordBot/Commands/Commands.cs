@@ -69,10 +69,11 @@ namespace NSJSDiscordBot.Commands
                 await ctx.Guild.GetChannel(1008824886678016001).SendMessageAsync(embed);
 
                 // let's make a simple response.
-                var emoji = DiscordEmoji.FromName(ctx.Client, ":banhammer:");
+                //var emoji = DiscordEmoji.FromName(ctx.Client, ":banhammer:");
 
                 // and respond with it.
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent(emoji));
+                //await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent(emoji));
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("banning is disabled"));
             }
             catch (Exception)
             {
