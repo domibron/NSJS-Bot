@@ -24,7 +24,7 @@ using DSharpPlus.Net;
 using DSharpPlus.SlashCommands;
 using DSharpPlus.VoiceNext;
 using System.Security;
-using Emzi0767.Utilities;
+using System.Net.Http.Headers;
 
 namespace NSJSDiscordBot.Commands
 {
@@ -88,24 +88,86 @@ namespace NSJSDiscordBot.Commands
         // [Option("Hour", "The hour to be sent on")] int hour, [Option("Minute", "The minute to be sent on")] int minute
 
         [SlashCommand("TimedMessage", "Delay a message that is to be sent"), RequireGuild, RequireOwner]
-        public async Task TimedMessage(InteractionContext ctx, [Option("Mesage", "The string message")] string message, [Option("Year", "The year to send the message")] long year, [Option("Month", "The month to send the message")] long month, [Option("Day", "The day to send the message")] long day, [Option("Time", "Time for when the message is sent")] TimeSpan? time)
+        public async Task TimedMessage(InteractionContext ctx, [Option("Mesage", "The string message")] string message, [Option("Channel", "The channel to senf the message")] DiscordChannel discordChannel = null, [Option("Time", "Time for when the message is sent")] TimeSpan? time = null, [Option("Year", "The year to send the message")] long year = 0, [Option("Month", "The month to send the message")] long month = 0, [Option("Day", "The day to send the message")] long day = 0)
         {
             if (time  == null)
             {
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"error with the time"));
+                //await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"error with the time, defualt value is 12:00:00"));
+                //return;
+            }
+
+            bool pass = false;
+
+            foreach (DiscordRole role in ctx.Member.Roles)
+            {
+                if (role.Id == 981206652927742003 || role.Id == 1002688931613114418 || role.Id == 983398522982383626)
+                {
+                    pass = true;
+                }
+            }
+
+            if (!pass)
+            {
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"You are not a coordinator!"));
                 return;
             }
 
-            DateTime dt = new((int)year, (int)month, (int)day, time.Value.Hours, time.Value.Minutes, time.Value.Seconds);
+            if (discordChannel == null)
+            {
+                discordChannel = ctx.Channel;
+                Console.WriteLine(discordChannel.ToString());
+            }
+            else
+            {
+                Console.WriteLine(discordChannel.ToString());
+            }
+
+            if (year == 0 || year == null)
+            {
+                year = DateTime.Now.Year;
+                Console.WriteLine(year.ToString());
+            }
+
+            if (month == 0 || month == null)
+            {
+                month = DateTime.Now.Month;
+                Console.WriteLine(month.ToString());
+            }
+
+            if (day == 0 || day == null)
+            {
+                //day = DateTime.Now.Day;
+
+                // fix to set the day to the one in advance
+
+                DateTime ldt = DateTime.Now;
+                ldt = ldt.AddDays(1);
+
+                day = ldt.Day;
+
+                Console.WriteLine(day.ToString());
+            }
+
+            DateTime dt;
+
+            if (time == null)
+            {
+                dt = new((int)year, (int)month, (int)day, 12, 0, 0);
+                Console.WriteLine(dt.ToString());
+            }
+            else
+            {
+                dt = new((int)year, (int)month, (int)day, time.Value.Hours, time.Value.Minutes, time.Value.Seconds);
+                Console.WriteLine(dt.ToString());
+            }
 
             if (DateTime.Compare(dt, DateTime.Now) > 0)
             {
-
-                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"message will be sent at {dt}"));
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"message will be sent at {dt} in {discordChannel.Name}"));
 
                 Console.WriteLine(dt.ToString());
 
-                StoreData.StoreMessageAndTime(message, dt);
+                StoreData.StoreMessageAndTime(message, dt, discordChannel.Id);
             }
             else
             {
@@ -113,8 +175,15 @@ namespace NSJSDiscordBot.Commands
             }
         }
 
+        [SlashCommand("UpdateStore", "fore save of any data stored in cache"), RequireGuild, RequireOwner]
+        public async Task UpdateStore(InteractionContext ctx)
+        {
+            StoreData.UpdateStoreFile();
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"done"));
+        }
+
         [SlashCommand("DropData", "drops all store data"), RequireGuild, RequireOwner]
-        public async Task Testing(InteractionContext ctx)
+        public async Task DropData(InteractionContext ctx)
         {
             if (!ctx.Member.IsOwner)
             {

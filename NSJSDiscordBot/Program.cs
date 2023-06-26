@@ -51,18 +51,21 @@ namespace NSJSDiscordBot
     {
         public static List<string> Messages = new List<string>();
         public static List<DateTime> Times = new List<DateTime>();
+        public static List<ulong> ChannelIDs = new List<ulong>();
 
-        public static void StoreMessageAndTime(string msg, DateTime dateTime)
+        public static void StoreMessageAndTime(string msg, DateTime dateTime, ulong channel)
         {
             StoreData.Times.Add(dateTime);
             StoreData.Messages.Add(msg);
+            StoreData.ChannelIDs.Add(channel);
             UpdateStoreFile();
         }
 
-        public static void RemoveMessageAndTime(string msg, DateTime dateTime)
+        public static void RemoveMessageAndTime(string msg, DateTime dateTime, ulong channel)
         {
             StoreData.Times.Remove(dateTime);
             StoreData.Messages.Remove(msg);
+            StoreData.ChannelIDs.Remove(channel);
             UpdateStoreFile();
         }
 
@@ -92,6 +95,13 @@ namespace NSJSDiscordBot
                 foreach (DateTime dt in StoreData.Times)
                 {
                     writer.WriteValue(dt);
+                }
+                writer.WriteEnd();
+                writer.WritePropertyName("ChannelID");
+                writer.WriteStartArray();
+                foreach (ulong dcid in StoreData.ChannelIDs)
+                {
+                    writer.WriteValue(dcid);
                 }
                 writer.WriteEnd();
                 writer.WriteEndObject();
@@ -126,6 +136,9 @@ namespace NSJSDiscordBot
                 writer.WritePropertyName("Time");
                 writer.WriteStartArray();
                 writer.WriteEnd();
+                writer.WritePropertyName("ChannelID");
+                writer.WriteStartArray();
+                writer.WriteEnd();
                 writer.WriteEndObject();
             }
 
@@ -139,6 +152,7 @@ namespace NSJSDiscordBot
 
             Messages.Clear();
             Times.Clear();
+            ChannelIDs.Clear();
         }
     }
 
@@ -203,6 +217,9 @@ namespace NSJSDiscordBot
                     await writer.WritePropertyNameAsync("Time");
                     await writer.WriteStartArrayAsync();
                     await writer.WriteEndAsync();
+                    await writer.WritePropertyNameAsync("ChannelID");
+                    await writer.WriteStartArrayAsync();
+                    await writer.WriteEndAsync();
                     await writer.WriteEndObjectAsync();
                 }
 
@@ -237,8 +254,14 @@ namespace NSJSDiscordBot
 
                 var format = "yyyy-MM-ddTHH:mm:ss.FFFZ"; // your datetime format
                 var dateTimeConverter = new IsoDateTimeConverter { DateTimeFormat = format };
-
-                storejson = JsonConvert.DeserializeObject<StoreJson>(storeJsonString, dateTimeConverter);
+                try
+                {
+                    storejson = JsonConvert.DeserializeObject<StoreJson>(storeJsonString, dateTimeConverter);
+                }
+                catch
+                {
+                    System.Environment.FailFast("Error with store, is it empty?");
+                }
 
                 //storejson = JsonConvert.DeserializeObject<StoreJson>(storeJsonString);
             }
@@ -247,6 +270,7 @@ namespace NSJSDiscordBot
             {
                 StoreData.Times = storejson.Time;
                 StoreData.Messages = storejson.Message;
+                StoreData.ChannelIDs = storejson.ChannelID;
             }
             catch
             {
@@ -265,8 +289,9 @@ namespace NSJSDiscordBot
                     {
                         string rstr = StoreData.Messages[i];
                         DateTime rdt = StoreData.Times[i];
+                        ulong rdc = StoreData.ChannelIDs[i];
 
-                        StoreData.RemoveMessageAndTime(rstr, rdt);
+                        StoreData.RemoveMessageAndTime(rstr, rdt, rdc);
 
                         Console.WriteLine("I removed some outdated messages");
                     }
@@ -277,22 +302,30 @@ namespace NSJSDiscordBot
             {
                 for (int i = 0; i < StoreData.Times.Count; i++)
                 {
-                    if (StoreData.Times[i].Day == DateTime.Now.Day && StoreData.Times[i].Minute == DateTime.Now.TimeOfDay.Minutes)
+                    try
                     {
-                      
-                        DateTime timeSpanToRemove = StoreData.Times[i];
-                        string messageToRemove = StoreData.Messages[i];
+                        if (StoreData.Times[i].Year == DateTime.Now.Year && StoreData.Times[i].Month == DateTime.Now.Month && StoreData.Times[i].Day == DateTime.Now.Day && StoreData.Times[i].Hour == DateTime.Now.Hour && StoreData.Times[i].Minute == DateTime.Now.TimeOfDay.Minutes)
+                        {
 
-                        DiscordChannel dc = await Client.GetChannelAsync(994362031488643204);
-                        await Client.SendMessageAsync(dc, messageToRemove);
+                            DateTime timeSpanToRemove = StoreData.Times[i];
+                            string messageToRemove = StoreData.Messages[i];
+                            ulong discordChannelToRemove = StoreData.ChannelIDs[i];
 
-                        StoreData.RemoveMessageAndTime(messageToRemove, timeSpanToRemove);
+                            DiscordChannel dc = await Client.GetChannelAsync(discordChannelToRemove);
+                            await Client.SendMessageAsync(dc, messageToRemove);
 
+                            StoreData.RemoveMessageAndTime(messageToRemove, timeSpanToRemove, discordChannelToRemove);
+
+                        }
+                    }
+                    catch (ArgumentOutOfRangeException)
+                    {
+                        Console.WriteLine("Data was removed before I could do anything");
                     }
 
                     //Console.WriteLine(DateTime.Now.Day);
 
-                   //Console.WriteLine(storejson.Time[i].Value);
+                    //Console.WriteLine(storejson.Time[i].Value);
 
                     //try // I am calling data that is not there, should immidetly back out after deletion.
                     //{
@@ -576,5 +609,8 @@ namespace NSJSDiscordBot
 
         [JsonProperty("time")]
         public List<DateTime> Time { get; set; }
+
+        [JsonProperty("channelid")]
+        public List<ulong> ChannelID { get; set; }
     }
 }
