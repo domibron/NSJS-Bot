@@ -34,11 +34,10 @@ namespace NSJSDiscordBot.Commands
         public async Task Help(InteractionContext ctx)
         {
             await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"use {CoreData.Prefix}help"));
-            StoreData.lctx = ctx;
+
         }
 
-        [SlashCommand("ban", "This bans a user, as long you have the permissions")]
-        [RequireGuild, RequirePermissions(Permissions.BanMembers)]
+        [SlashCommand("ban", "This bans a user, as long you have the permissions"), RequireGuild, RequirePermissions(Permissions.BanMembers)]
         public async Task BanCommand(InteractionContext ctx, [Option("user", "User to ban")] DiscordUser user,
             [Choice("None", 0)]
             [Choice("1 Day", 1)]
@@ -88,13 +87,83 @@ namespace NSJSDiscordBot.Commands
 
         // [Option("Hour", "The hour to be sent on")] int hour, [Option("Minute", "The minute to be sent on")] int minute
 
-        [SlashCommand("TimedMessage", "Delay a message that is to be sent")]
-        [RequireGuild]
-        public async Task TimedMessage(InteractionContext ctx, [Option("Mesage", "The string message")] string message, [Option("Time", "The string message")] TimeSpan? time)
+        [SlashCommand("TimedMessage", "Delay a message that is to be sent"), RequireGuild, RequireOwner]
+        public async Task TimedMessage(InteractionContext ctx, [Option("Mesage", "The string message")] string message, [Option("Year", "The year to send the message")] long year, [Option("Month", "The month to send the message")] long month, [Option("Day", "The day to send the message")] long day, [Option("Time", "Time for when the message is sent")] TimeSpan? time)
         {
-            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"{ctx.User} {time} {message}"));
+            if (time  == null)
+            {
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"error with the time"));
+                return;
+            }
 
-            StoreData.StoreValue(message, time);
+            DateTime dt = new((int)year, (int)month, (int)day, time.Value.Hours, time.Value.Minutes, time.Value.Seconds);
+
+            if (DateTime.Compare(dt, DateTime.Now) > 0)
+            {
+
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"message will be sent at {dt}"));
+
+                Console.WriteLine(dt.ToString());
+
+                StoreData.StoreMessageAndTime(message, dt);
+            }
+            else
+            {
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"the time you want to send the message is in the past! your time {dt}, current time {DateTime.Now}"));
+            }
+        }
+
+        [SlashCommand("DropData", "drops all store data"), RequireGuild, RequireOwner]
+        public async Task Testing(InteractionContext ctx)
+        {
+            if (!ctx.Member.IsOwner)
+            {
+                await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Unauthorized user!"));
+
+                DiscordEmbedBuilder embed = new DiscordEmbedBuilder
+                {
+                    Thumbnail = new DiscordEmbedBuilder.EmbedThumbnail
+                    {
+                        Url = ctx.Member.AvatarUrl
+                    },
+                    Title = $"User attempted to drop data: {ctx.Member.Username} ({ctx.Member.Id})",
+                    Description = ($"user: {ctx.Member.Username}  id: {ctx.Member.Id}" +
+                    $"\nKeep an eye out"),
+                    Timestamp = DateTime.UtcNow,
+                    Footer = new DiscordEmbedBuilder.EmbedFooter
+                    {
+                        Text = $"time when command was ran: {DateTime.Now}"
+                    }
+                };
+
+                // sends the embed to the logging channel of NSJS.
+                await ctx.Guild.GetChannel(1008824886678016001).SendMessageAsync(embed);
+
+                return;
+            }
+
+            StoreData.DropStore();
+
+            DiscordEmbedBuilder embedO = new DiscordEmbedBuilder
+            {
+                Thumbnail = new DiscordEmbedBuilder.EmbedThumbnail
+                {
+                    Url = ctx.Member.AvatarUrl
+                },
+                Title = $"**User successfully dropped the data**: {ctx.Member.Username} ({ctx.Member.Id})",
+                Description = ($"user: {ctx.Member.Username}  id: {ctx.Member.Id}" +
+                $"\nAll data is lost!"),
+                Timestamp = DateTime.UtcNow,
+                Footer = new DiscordEmbedBuilder.EmbedFooter
+                {
+                    Text = $"time when command was ran: {DateTime.Now}"
+                }
+            };
+
+            // sends the embed to the logging channel of NSJS.
+            await ctx.Guild.GetChannel(1008824886678016001).SendMessageAsync(embedO);
+
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Done, hope you ment to do that!"));
         }
     }
 

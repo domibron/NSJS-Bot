@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 using DSharpPlus.CommandsNext;
 using DSharpPlus.CommandsNext.Attributes;
@@ -32,6 +33,9 @@ using DSharpPlus.VoiceNext;
 
 using NSJSDiscordBot.Commands;
 using System.Security.Authentication;
+using Newtonsoft.Json.Converters;
+using Discord.Net;
+using System.Threading;
 
 namespace NSJSDiscordBot
 {
@@ -45,15 +49,96 @@ namespace NSJSDiscordBot
 
     public class StoreData
     {
-        public static List<string> messages = new List<string>();
-        public static List<TimeSpan?> times = new List<TimeSpan?>();
-        public static InteractionContext lctx = new InteractionContext();
+        public static List<string> Messages = new List<string>();
+        public static List<DateTime> Times = new List<DateTime>();
 
-        public static void StoreValue(string msg, TimeSpan? timespan)
+        public static void StoreMessageAndTime(string msg, DateTime dateTime)
         {
-            Program.storejson.Time.Add(timespan);
-            Program.storejson.Message.Add(msg);
-            Console.WriteLine(Program.storejson.Message[1] + " " + Program.storejson.Time[1]);
+            StoreData.Times.Add(dateTime);
+            StoreData.Messages.Add(msg);
+            UpdateStoreFile();
+        }
+
+        public static void RemoveMessageAndTime(string msg, DateTime dateTime)
+        {
+            StoreData.Times.Remove(dateTime);
+            StoreData.Messages.Remove(msg);
+            UpdateStoreFile();
+        }
+
+        public static void UpdateStoreFile()
+        {
+            File.Delete("store.json");
+            using (var fc = File.Create("store.json"))
+                fc.Close();
+            //         putting a json string here \/ will preseve the data
+            StringBuilder strb = new StringBuilder(); //<-- important for writing to file
+            StringWriter strw = new StringWriter(strb);
+
+            using (JsonWriter writer = new JsonTextWriter(strw))
+            {
+                writer.Formatting = Formatting.Indented;
+
+                writer.WriteStartObject();
+                writer.WritePropertyName("Message");
+                writer.WriteStartArray();
+                foreach (string msg in StoreData.Messages)
+                {
+                    writer.WriteValue(msg);
+                }
+                writer.WriteEnd();
+                writer.WritePropertyName("Time");
+                writer.WriteStartArray();
+                foreach (DateTime dt in StoreData.Times)
+                {
+                    writer.WriteValue(dt);
+                }
+                writer.WriteEnd();
+                writer.WriteEndObject();
+            }
+
+            using (var fs = File.OpenWrite("store.json"))
+            using (var aasds = new StreamWriter(fs, new UTF8Encoding(false)))
+                 aasds.Write(strb);
+
+            using (var fs = File.OpenRead("store.json"))
+            using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                Program.storeJsonString =  sr.ReadToEnd();
+        }
+
+        public static void DropStore()
+        {
+            File.Delete("store.json");
+            using (var fc = File.Create("store.json"))
+                fc.Close();
+
+            StringBuilder strb = new StringBuilder(); //<-- important for writing to file
+            StringWriter strw = new StringWriter(strb);
+
+            using (JsonWriter writer = new JsonTextWriter(strw))
+            {
+                writer.Formatting = Formatting.Indented;
+
+                writer.WriteStartObject();
+                writer.WritePropertyName("Message");
+                writer.WriteStartArray();
+                writer.WriteEnd();
+                writer.WritePropertyName("Time");
+                writer.WriteStartArray();
+                writer.WriteEnd();
+                writer.WriteEndObject();
+            }
+
+            using (var fs = File.OpenWrite("store.json"))
+            using (var aasds = new StreamWriter(fs, new UTF8Encoding(false)))
+                aasds.Write(strb);
+
+            using (var fs = File.OpenRead("store.json"))
+            using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                Program.storeJsonString = sr.ReadToEnd();
+
+            Messages.Clear();
+            Times.Clear();
         }
     }
 
@@ -73,6 +158,8 @@ namespace NSJSDiscordBot
 
         public static StoreJson storejson;
 
+        public static string? storeJsonString = "";
+
         //public static CoreData coreData = new CoreData();
 
         public static void Main(string[] args)
@@ -86,13 +173,12 @@ namespace NSJSDiscordBot
 
         public async void Update()
         {
-            var json = "";
             try
             {
                 Console.WriteLine("ATTEMPTING TO OPEN STORE...");
                 using (var fs = File.OpenRead("store.json"))
                 using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
-                    json = await sr.ReadToEndAsync();
+                    storeJsonString = await sr.ReadToEndAsync();
             }
             catch
             {
@@ -101,7 +187,7 @@ namespace NSJSDiscordBot
                     fc.Close();
                 using (var fs = File.OpenRead("store.json"))
                 using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
-                    json = await sr.ReadToEndAsync();
+                    storeJsonString = await sr.ReadToEndAsync();
 
                 StringBuilder strb = new StringBuilder(); //<-- important for writing to file
                 StringWriter strw = new StringWriter(strb);
@@ -113,11 +199,9 @@ namespace NSJSDiscordBot
                     await writer.WriteStartObjectAsync();
                     await writer.WritePropertyNameAsync("Message");
                     await writer.WriteStartArrayAsync();
-                    await writer.WriteValueAsync("A MESSAGE");
                     await writer.WriteEndAsync();
                     await writer.WritePropertyNameAsync("Time");
                     await writer.WriteStartArrayAsync();
-                    await writer.WriteValueAsync("11:11:00");
                     await writer.WriteEndAsync();
                     await writer.WriteEndObjectAsync();
                 }
@@ -128,52 +212,88 @@ namespace NSJSDiscordBot
 
                 using (var fs = File.OpenRead("store.json"))
                 using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
-                    json = await sr.ReadToEndAsync();
+                    storeJsonString = await sr.ReadToEndAsync();
             }
 
             try
             {
                 Console.WriteLine("ATTEMPTING TO STORE STORE...");
-                storejson = JsonConvert.DeserializeObject<StoreJson>(json);
+                var format = "yyyy-MM-ddTHH:mm:ss.FFFZ"; // your datetime format
+                var dateTimeConverter = new IsoDateTimeConverter { DateTimeFormat = format };
+
+                storejson = JsonConvert.DeserializeObject<StoreJson>(storeJsonString, dateTimeConverter);
+
+
             }
             catch
             {
                 Console.WriteLine("FALIURE ATTEMPTING TO STORE STORE...");
                 using (var fs = File.OpenRead("store.json"))
                 using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
-                    json = await sr.ReadToEndAsync();
+                    storeJsonString = await sr.ReadToEndAsync();
 
-                //storejson = JsonConvert.DeserializeObject<StoreJson>(json);
+                Console.WriteLine(storeJsonString);
 
+
+                var format = "yyyy-MM-ddTHH:mm:ss.FFFZ"; // your datetime format
+                var dateTimeConverter = new IsoDateTimeConverter { DateTimeFormat = format };
+
+                storejson = JsonConvert.DeserializeObject<StoreJson>(storeJsonString, dateTimeConverter);
+
+                //storejson = JsonConvert.DeserializeObject<StoreJson>(storeJsonString);
             }
 
             try
             {
-                StoreData.times = storejson.Time;
-                StoreData.messages = storejson.Message;
+                StoreData.Times = storejson.Time;
+                StoreData.Messages = storejson.Message;
             }
-            catch 
+            catch
             {
                 Console.WriteLine("UH OH");
                 System.Environment.FailFast("FAILURE AT STORE.JSON");
             }
 
+            if (StoreData.Times.Count > 0)
+            {
+                for (int i = 0; i < StoreData.Times.Count; i++)
+                {
+                    //< 0 − If date1 is earlier than date2
+                    //0 − If date1 is the same as date2
+                    //> 0 − If date1 is later than date2
+                    if (DateTime.Compare(StoreData.Times[i], DateTime.Now) <= 0)
+                    {
+                        string rstr = StoreData.Messages[i];
+                        DateTime rdt = StoreData.Times[i];
+
+                        StoreData.RemoveMessageAndTime(rstr, rdt);
+
+                        Console.WriteLine("I removed some outdated messages");
+                    }
+                }
+            }
+
             while (true)
             {
-                for (int i = 0; i < storejson.Time.Count; i++)
+                for (int i = 0; i < StoreData.Times.Count; i++)
                 {
-                    if (storejson.Time[i].Value.Hours == DateTime.Now.TimeOfDay.Hours && storejson.Time[i].Value.Minutes == DateTime.Now.TimeOfDay.Minutes)
+                    if (StoreData.Times[i].Day == DateTime.Now.Day && StoreData.Times[i].Minute == DateTime.Now.TimeOfDay.Minutes)
                     {
-                        DiscordChannel dc = await Client.GetChannelAsync(994362031488643204);
-                        await Client.SendMessageAsync(dc, storejson.Message[i]);
+                      
+                        DateTime timeSpanToRemove = StoreData.Times[i];
+                        string messageToRemove = StoreData.Messages[i];
 
-                        // remove from data
-                        TimeSpan? timeSpanToRemove = storejson.Time[i];
-                        string messageToRemove = storejson.Message[i];
-                        storejson.Time.Remove(timeSpanToRemove);
-                        storejson.Message.Remove(messageToRemove);
+                        DiscordChannel dc = await Client.GetChannelAsync(994362031488643204);
+                        await Client.SendMessageAsync(dc, messageToRemove);
+
+                        StoreData.RemoveMessageAndTime(messageToRemove, timeSpanToRemove);
 
                     }
+
+                    //Console.WriteLine(DateTime.Now.Day);
+
+                   //Console.WriteLine(storejson.Time[i].Value);
+
                     //try // I am calling data that is not there, should immidetly back out after deletion.
                     //{
                     //    Console.WriteLine(storejson.Time[i].Value + " vs " + DateTime.Now.TimeOfDay);
@@ -263,7 +383,7 @@ namespace NSJSDiscordBot
                 catch
                 {
                     Console.WriteLine("FALIURE");
-                    System.Environment.FailFast("FAILURE, NRE OCCURED! saved your comuper :)");
+                    System.Environment.FailFast("FAILURE, NRE OCCURED! config file");
                 }
             }
 
@@ -452,9 +572,9 @@ namespace NSJSDiscordBot
     public struct StoreJson
     {
         [JsonProperty("message")]
-        public List<string> Message { get; private set; }
+        public List<string> Message { get; set; }
 
         [JsonProperty("time")]
-        public List<TimeSpan?> Time { get; private set; }
+        public List<DateTime> Time { get; set; }
     }
 }
