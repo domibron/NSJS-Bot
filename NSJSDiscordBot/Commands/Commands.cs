@@ -30,6 +30,12 @@ namespace NSJSDiscordBot.Commands
 {
     public class SlashCommands : ApplicationCommandModule
     {
+        [SlashCommand("ping", "Test the bot")]
+        public async Task Ping(InteractionContext ctx)
+        {
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Pong!"));
+        }
+
         [SlashCommand("help", "get some help")]
         public async Task Help(InteractionContext ctx)
         {

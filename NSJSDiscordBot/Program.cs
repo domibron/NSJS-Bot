@@ -158,6 +158,9 @@ namespace NSJSDiscordBot
 
     public class Program
     {
+
+        public bool sentMessage = false;
+
         public readonly EventId BotEventId = new EventId(42, "Bot-Ex01");
 
         public DiscordClient Client { get; set; }
@@ -337,7 +340,18 @@ namespace NSJSDiscordBot
                     //}
                 }
 
+                if (DateTime.Now.Minute == 0 && DateTime.Now.Second == 0 && !sentMessage)
+                {
+                    Client.Logger.LogInformation($"Im Alive! Time:{DateTime.Now.TimeOfDay}");
+                    DiscordChannel dc = await Client.GetChannelAsync(1127014221968846948);
+                    await Client.SendMessageAsync(dc, $"Im alive! \nTime:{DateTime.Now.TimeOfDay}");
+                    sentMessage = true;
+                }
 
+                if (DateTime.Now.Minute != 0 && DateTime.Now.Second != 0 && sentMessage)
+                {
+                    sentMessage = false;
+                }
 
             }
         }
