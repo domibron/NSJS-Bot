@@ -25,11 +25,48 @@ using DSharpPlus.SlashCommands;
 using DSharpPlus.VoiceNext;
 using System.Security;
 using System.Net.Http.Headers;
+using DSharpPlus.SlashCommands.Attributes;
 
 namespace NSJSDiscordBot.Commands
 {
     public class SlashCommands : ApplicationCommandModule
     {
+        [SlashCommand("allbots", "Test the bot")]
+        public async Task AllBots(InteractionContext ctx)
+        {
+            DiscordGuild DG = ctx.Guild;
+            int members = 0;
+            int staffCount = 0;
+
+            string bots = "";
+
+            foreach (DiscordMember member in DG.Members.Values)
+            {
+                if (member.IsBot) {
+                    bots += " " + member.Nickname;
+                }
+            }
+
+            //foreach (DiscordMember member in DG.Members.Values)
+            //{
+            //    if (member.Roles.Contains(DG.GetRole(983400691777294396))) staffCount++;
+            //}
+
+            //DiscordEmbedBuilder embed = new DiscordEmbedBuilder
+            //{
+            //    Title = "Number of members",
+            //    Description = $"Current Members: {members}\nCurrent Bots: {DG.MemberCount - members}\nCurrent Staff: {staffCount}"
+            //};
+
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder
+            {
+                Title = "All bots",
+                Description = $"Current bots: {bots}"
+            };
+
+            await ctx.CreateResponseAsync(embed);
+        }
+
         [SlashCommand("ping", "Test the bot")]
         public async Task Ping(InteractionContext ctx)
         {
@@ -43,7 +80,7 @@ namespace NSJSDiscordBot.Commands
 
         }
 
-        [SlashCommand("ban", "This bans a user, as long you have the permissions"), RequireGuild, RequirePermissions(Permissions.BanMembers)]
+        [SlashCommand("ban", "This bans a user, as long you have the permissions"), SlashRequireGuild, SlashRequirePermissions(Permissions.BanMembers)]
         public async Task BanCommand(InteractionContext ctx, [Option("user", "User to ban")] DiscordUser user,
             [Choice("None", 0)]
             [Choice("1 Day", 1)]
@@ -93,7 +130,7 @@ namespace NSJSDiscordBot.Commands
 
         // [Option("Hour", "The hour to be sent on")] int hour, [Option("Minute", "The minute to be sent on")] int minute
 
-        [SlashCommand("TimedMessage", "Delay a message that is to be sent"), RequireGuild, RequireOwner]
+        [SlashCommand("TimedMessage", "Delay a message that is to be sent"), SlashRequireGuild, SlashRequireOwner]
         public async Task TimedMessage(InteractionContext ctx, [Option("Mesage", "The string message")] string message, [Option("Channel", "The channel to senf the message")] DiscordChannel discordChannel = null, [Option("Time", "Time for when the message is sent")] TimeSpan? time = null, [Option("Year", "The year to send the message")] long year = 0, [Option("Month", "The month to send the message")] long month = 0, [Option("Day", "The day to send the message")] long day = 0)
         {
             if (time  == null)
@@ -181,14 +218,46 @@ namespace NSJSDiscordBot.Commands
             }
         }
 
-        [SlashCommand("UpdateStore", "fore save of any data stored in cache"), RequireGuild, RequireOwner]
+        [SlashRequireGuild, SlashCommand("MemberCount", "Gets the current count of members")]
+        public async Task MemberCount(InteractionContext ctx)
+        {
+            DiscordGuild DG = ctx.Guild;
+            int members = 0;
+            int staffCount = 0;
+            int botcount = 0;
+
+            // stops it running in DMs
+            if (ctx.Guild == null || ctx.Guild.Id != 981206447004213258) return;
+
+            foreach (DiscordMember member in DG.Members.Values)
+            {
+                if (!member.IsBot) members++;
+                else botcount++;
+            }
+
+            foreach (DiscordMember member in DG.Members.Values)
+            {
+                if (member.Roles.Contains(DG.GetRole(1002689383473889371)) || member.Roles.Contains(DG.GetRole(1002689425404338228))) 
+                    staffCount++;
+            }
+
+            DiscordEmbedBuilder embed = new DiscordEmbedBuilder
+            {
+                Title = "Number of members",
+                Description = $"Current Members: {members}\nCurrent Bots: {botcount}\nCurrent Staff: {staffCount}"
+            };
+
+            await ctx.CreateResponseAsync(embed);
+        }
+
+        [SlashCommand("UpdateStore", "fore save of any data stored in cache"), SlashRequireGuild, SlashRequireOwner]
         public async Task UpdateStore(InteractionContext ctx)
         {
             StoreData.UpdateStoreFile();
             await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"done"));
         }
 
-        [SlashCommand("DropData", "drops all store data"), RequireGuild, RequireOwner]
+        [SlashCommand("DropData", "drops all store data"), SlashRequireGuild, SlashRequireOwner]
         public async Task DropData(InteractionContext ctx)
         {
             if (!ctx.Member.IsOwner)
@@ -258,10 +327,12 @@ namespace NSJSDiscordBot.Commands
             DiscordGuild DG = ctx.Guild;
             int members = 0;
             int staffCount = 0;
+            int botcount = 0;
 
             foreach (DiscordMember member in DG.Members.Values)
             {
                 if (!member.IsBot) members++;
+                else botcount++;
             }
 
             foreach (DiscordMember member in DG.Members.Values)
@@ -272,7 +343,7 @@ namespace NSJSDiscordBot.Commands
             DiscordEmbedBuilder embed = new DiscordEmbedBuilder
             {
                 Title = "Number of members",
-                Description = $"Current Members: {members}\nCurrent Bots: {DG.MemberCount - members}\nCurrent Staff: {staffCount}"
+                Description = $"Current Members: {members}\nCurrent Bots: {botcount}\nCurrent Staff: {staffCount}"
             };
 
             await ctx.RespondAsync(embed);

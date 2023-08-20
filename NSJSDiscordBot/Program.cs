@@ -36,6 +36,10 @@ using System.Security.Authentication;
 using Newtonsoft.Json.Converters;
 using Discord.Net;
 using System.Threading;
+using System.Net.Sockets;
+using System.Diagnostics;
+using DSharpPlus.SlashCommands.EventArgs;
+//using Discord; // this is not ment to be here, as dsharp inherits from discord.
 
 namespace NSJSDiscordBot
 {
@@ -156,6 +160,8 @@ namespace NSJSDiscordBot
         }
     }
 
+    // =============================================================================================================================================================================
+
     public class Program
     {
 
@@ -177,13 +183,18 @@ namespace NSJSDiscordBot
 
         public static string? storeJsonString = "";
 
+        public bool Connection = false;
+
         //public static CoreData coreData = new CoreData();
 
-        public static void Main(string[] args)
+        public static void Main(string[] args) // =1=1=1=1=1=1=1=1=11=1=1=1=111111111111111111====1===1=11=1=1=1=1=1=1=1=1=1=1================
         {
             // since we cannot make the entry method asynchronous,
             // let's pass the execution to asynchronous code
-            var prog = new Program();
+            //using (Process p = Process.GetCurrentProcess())
+            //    p.PriorityClass = ProcessPriorityClass.High;
+
+                var prog = new Program();
             prog.Update();
             prog.RunBotAsync().GetAwaiter().GetResult();
         }
@@ -281,43 +292,63 @@ namespace NSJSDiscordBot
                 System.Environment.FailFast("FAILURE AT STORE.JSON");
             }
 
-            if (StoreData.Times.Count > 0)
+            if (StoreData.Times.Count > 0 && Connection)
             {
                 for (int i = 0; i < StoreData.Times.Count; i++)
                 {
-                    //< 0 − If date1 is earlier than date2
-                    //0 − If date1 is the same as date2
-                    //> 0 − If date1 is later than date2
+                    //d1 < 0 − If date1 is earlier than date2
+                    //d1 = 0 − If date1 is the same as date2
+                    //d1 > 0 − If date1 is later than date2
                     if (DateTime.Compare(StoreData.Times[i], DateTime.Now) <= 0)
                     {
-                        string rstr = StoreData.Messages[i];
+                        string rsm = StoreData.Messages[i];
                         DateTime rdt = StoreData.Times[i];
                         ulong rdc = StoreData.ChannelIDs[i];
 
-                        StoreData.RemoveMessageAndTime(rstr, rdt, rdc);
+                        DiscordChannel dc = await Client.GetChannelAsync(rdc); // I want to send the message even if its late.
+                        await Client.SendMessageAsync(dc, rsm);
 
-                        Console.WriteLine("I removed some outdated messages");
+                        StoreData.RemoveMessageAndTime(rsm, rdt, rdc);
+
+                        Console.WriteLine("I sent and removed some outdated messages");
                     }
                 }
             }
 
             while (true)
             {
+                //try
+                //{
+                //    Console.WriteLine(Client.ReconnectAsync().Status);
+                //}
+                //catch when (Client.ReconnectAsync() != null)
+                //{
+                //    Console.WriteLine("NR");
+                //}
+
+
+                // if we return then the application will stop the update method.
+                if (!Connection) { continue; }
+
                 for (int i = 0; i < StoreData.Times.Count; i++)
                 {
                     try
                     {
-                        if (StoreData.Times[i].Year == DateTime.Now.Year && StoreData.Times[i].Month == DateTime.Now.Month && StoreData.Times[i].Day == DateTime.Now.Day && StoreData.Times[i].Hour == DateTime.Now.Hour && StoreData.Times[i].Minute == DateTime.Now.TimeOfDay.Minutes)
+                        if (StoreData.Times[i].Year <= DateTime.Now.Year && StoreData.Times[i].Month <= DateTime.Now.Month && StoreData.Times[i].Day <= DateTime.Now.Day && StoreData.Times[i].Hour <= DateTime.Now.Hour && StoreData.Times[i].Minute <= DateTime.Now.TimeOfDay.Minutes)
                         {
+      
+                            try
+                            {
+                                DateTime timeSpanToRemove = StoreData.Times[i];
+                                string messageToRemove = StoreData.Messages[i];
+                                ulong discordChannelToRemove = StoreData.ChannelIDs[i];
 
-                            DateTime timeSpanToRemove = StoreData.Times[i];
-                            string messageToRemove = StoreData.Messages[i];
-                            ulong discordChannelToRemove = StoreData.ChannelIDs[i];
+                                DiscordChannel dc = await Client.GetChannelAsync(discordChannelToRemove);
+                                await Client.SendMessageAsync(dc, messageToRemove);
 
-                            DiscordChannel dc = await Client.GetChannelAsync(discordChannelToRemove);
-                            await Client.SendMessageAsync(dc, messageToRemove);
-
-                            StoreData.RemoveMessageAndTime(messageToRemove, timeSpanToRemove, discordChannelToRemove);
+                                StoreData.RemoveMessageAndTime(messageToRemove, timeSpanToRemove, discordChannelToRemove);
+                            }
+                            catch (Exception ex) { Console.WriteLine("connot send the message"); } // message will not send
 
                         }
                     }
@@ -445,7 +476,10 @@ namespace NSJSDiscordBot
                 AutoReconnect = true,
                 MinimumLogLevel = LogLevel.Debug,
 
-                Intents = DiscordIntents.All
+                Intents = DiscordIntents.All,
+
+                // TEMP SOlution to drop out connection.
+                ReconnectIndefinitely = true
             };
 
             Console.WriteLine("SUCCESS");
@@ -466,7 +500,7 @@ namespace NSJSDiscordBot
                 StringPrefixes = new[] { cfgjson.CommandPrefix },
 
                 // enable responding in direct messages
-                EnableDms = true,
+                EnableDms = false,
 
                 // enable mentioning the bot as a command prefix
                 EnableMentionPrefix = true
@@ -487,6 +521,13 @@ namespace NSJSDiscordBot
             this.Commands.CommandExecuted += this.Commands_CommandExecuted;
             this.Commands.CommandErrored += this.Commands_CommandErrored;
 
+               // !! just addewd this might not wwork
+            this.Client.Resumed += this.Client_Ready;
+            this.Client.SocketErrored += this.SockError;
+            this.Client.SocketClosed += this.SockClosed;
+
+
+
             //// let's add a converter for a custom type and a name
             //var mathopcvt = new MathOperationConverter();
             //Commands.RegisterConverter(mathopcvt);
@@ -502,6 +543,12 @@ namespace NSJSDiscordBot
             // set up our custom help formatter
             this.Commands.SetHelpFormatter<SimpleHelpFormatter>();
 
+            this.Slash.SlashCommandInvoked += this.Slash_Invoked;
+            this.Slash.SlashCommandErrored += this.Slash_CommandErrord;
+
+            
+            Console.WriteLine("BOT READY?");
+
             // finally, let's connect and log in
             try
             {
@@ -514,18 +561,78 @@ namespace NSJSDiscordBot
                 System.Environment.Exit(1);
             }
 
-            Console.WriteLine("BOT READY?");
+            Console.WriteLine("YES");
 
             // and this is to prevent premature quitting
             await Task.Delay(-1);
 
-            Console.WriteLine("YES");
+        }
+
+        private async Task Slash_CommandErrord(SlashCommandsExtension sender, SlashCommandErrorEventArgs args)
+        {
+            // let's log the error details
+            args.Context.Client.Logger.LogError(BotEventId, $"{args.Context.User.Username} tried executing '{args.Context.CommandName ?? "<unknown command>"}' but it errored: {args.Exception.GetType()}: {args.Exception.Message ?? "<no message>"}", DateTime.Now);
+
+            // let's check if the error is a result of lack
+            // of required permissions
+            if (args.Exception is SlashExecutionChecksFailedException)
+            {
+                // yes, the user lacks required permissions, 
+                // let them know
+
+                var emoji = DiscordEmoji.FromName(args.Context.Client, ":no_entry:");
+
+                // let's wrap the response into an embed
+                var embed = new DiscordEmbedBuilder
+                {
+                    Title = "Access denied",
+                    Description = $"{emoji} You do not have the permissions required to execute this command.", //{e.Exception.InnerException}
+                    Color = new DiscordColor(0xFF0000) // red
+                };
+                await args.Context.CreateResponseAsync(embed);
+            }
+            else if (args.Exception is CommandNotFoundException)
+            {
+                var emoji = DiscordEmoji.FromName(args.Context.Client, ":shrug:");
+
+                var embed = new DiscordEmbedBuilder
+                {
+                    Title = "Unkown command",
+                    Description = $"{emoji} I do not reconise this command. perhaps you typed it wrong?", //{e.Exception.InnerException}
+                    Color = new DiscordColor(0xF0FC03)
+                };
+                await args.Context.CreateResponseAsync(embed);
+            }
+        }
+
+        private Task Slash_Invoked(SlashCommandsExtension sender, SlashCommandInvokedEventArgs args)
+        {
+            args.Context.Client.Logger.LogInformation(BotEventId, $"{args.Context.User.Username} successfully executed '{args.Context.QualifiedName}'");
+
+            return Task.CompletedTask;
+        }
+
+        private Task SockClosed(DiscordClient sender, SocketCloseEventArgs args)
+        {
+            Connection = false;
+            sender.Logger.LogError(BotEventId, "Socket Closed");
+
+            return Task.CompletedTask;
+        }
+
+        private Task SockError(DiscordClient sender, SocketErrorEventArgs args)
+        {
+            Connection = false;
+            sender.Logger.LogError(BotEventId, "Failed to connect to socket");
+
+            return Task.CompletedTask;
         }
 
         private Task Client_Ready(DiscordClient sender, ReadyEventArgs e)
         {
             // let's log the fact that this event occured
             sender.Logger.LogInformation(BotEventId, "Client is ready to process events.");
+            Connection = true;
 
             // since this method is not async, let's return
             // a completed task, so that no additional work
