@@ -70,7 +70,8 @@ namespace NSJSDiscordBot.Commands
         [SlashCommand("ping", "Test the bot")]
         public async Task Ping(InteractionContext ctx)
         {
-            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Pong!"));
+            int ping = ctx.Client.Ping;
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Pong! \n  took {ping}ms"));
         }
 
         [SlashCommand("help", "get some help")]
