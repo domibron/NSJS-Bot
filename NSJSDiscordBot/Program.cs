@@ -34,21 +34,28 @@ using DSharpPlus.VoiceNext;
 using NSJSDiscordBot.Commands;
 using System.Security.Authentication;
 using Newtonsoft.Json.Converters;
-using Discord.Net;
 using System.Threading;
 using System.Net.Sockets;
 using System.Diagnostics;
 using DSharpPlus.SlashCommands.EventArgs;
+
+using DSharpPlus.SlashCommands.Attributes;
+using System.Runtime.InteropServices;
+//using Discord.Interactions;
 //using Discord; // this is not ment to be here, as dsharp inherits from discord.
 
+
+[assembly: AssemblyVersion("0.9.0.0")]
+[assembly: AssemblyFileVersion("0.9.0.0")]
+[assembly: AssemblyInformationalVersion("0.9.0.0")]
 namespace NSJSDiscordBot
 {
-
     public static class CoreData
     {
         public static ConfigJson configJson { get; set; }
         public static string DiscordToken = "YOUR TOKEN HERE";
         public static string Prefix = "PREFIX";
+        public static string Version = "0.0.0.0";
     }
 
     public class StoreData
@@ -164,6 +171,7 @@ namespace NSJSDiscordBot
 
     public class Program
     {
+        public static string Version { get; set; }
 
         public bool sentMessage = false;
 
@@ -181,6 +189,8 @@ namespace NSJSDiscordBot
 
         public static StoreJson storejson;
 
+        public VersionJson versionjson;
+
         public static string? storeJsonString = "";
 
         public bool Connection = false;
@@ -193,7 +203,7 @@ namespace NSJSDiscordBot
             // let's pass the execution to asynchronous code
             //using (Process p = Process.GetCurrentProcess())
             //    p.PriorityClass = ProcessPriorityClass.High;
-
+            NSJSUtil.Print("BOOTING NSJS BOT V[FALURE GETTING VERSION]", ConsoleColor.DarkBlue);
                 var prog = new Program();
             prog.Update();
             prog.RunBotAsync().GetAwaiter().GetResult();
@@ -203,14 +213,14 @@ namespace NSJSDiscordBot
         {
             try
             {
-                Console.WriteLine("ATTEMPTING TO OPEN STORE...");
+                NSJSUtil.Print("ATTEMPTING TO OPEN STORE...", ConsoleColor.Yellow);
                 using (var fs = File.OpenRead("store.json"))
                 using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
                     storeJsonString = await sr.ReadToEndAsync();
             }
             catch
             {
-                Console.WriteLine("FALIURE IN UPDATE!");
+                NSJSUtil.Print("FALIURE IN UPDATE!", ConsoleColor.Red);
                 using (var fc = File.Create("store.json"))
                     fc.Close();
                 using (var fs = File.OpenRead("store.json"))
@@ -248,7 +258,7 @@ namespace NSJSDiscordBot
 
             try
             {
-                Console.WriteLine("ATTEMPTING TO STORE STORE...");
+                NSJSUtil.Print("ATTEMPTING TO STORE STORE...", ConsoleColor.Yellow);
                 var format = "yyyy-MM-ddTHH:mm:ss.FFFZ"; // your datetime format
                 var dateTimeConverter = new IsoDateTimeConverter { DateTimeFormat = format };
 
@@ -258,12 +268,12 @@ namespace NSJSDiscordBot
             }
             catch
             {
-                Console.WriteLine("FALIURE ATTEMPTING TO STORE STORE...");
+                NSJSUtil.Print("FALIURE ATTEMPTING TO STORE STORE...", ConsoleColor.Red);
                 using (var fs = File.OpenRead("store.json"))
                 using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
                     storeJsonString = await sr.ReadToEndAsync();
 
-                Console.WriteLine(storeJsonString);
+                NSJSUtil.Print(storeJsonString);
 
 
                 var format = "yyyy-MM-ddTHH:mm:ss.FFFZ"; // your datetime format
@@ -274,6 +284,7 @@ namespace NSJSDiscordBot
                 }
                 catch
                 {
+                    NSJSUtil.Print("Error with store, is it empty?", ConsoleColor.Red);
                     System.Environment.FailFast("Error with store, is it empty?");
                 }
 
@@ -288,7 +299,7 @@ namespace NSJSDiscordBot
             }
             catch
             {
-                Console.WriteLine("UH OH");
+                NSJSUtil.Print("UH OH", ConsoleColor.Red);
                 System.Environment.FailFast("FAILURE AT STORE.JSON");
             }
 
@@ -310,7 +321,7 @@ namespace NSJSDiscordBot
 
                         StoreData.RemoveMessageAndTime(rsm, rdt, rdc);
 
-                        Console.WriteLine("I sent and removed some outdated messages");
+                        NSJSUtil.Print("I sent and removed some outdated messages", ConsoleColor.DarkYellow);
                     }
                 }
             }
@@ -354,7 +365,7 @@ namespace NSJSDiscordBot
                     }
                     catch (ArgumentOutOfRangeException)
                     {
-                        Console.WriteLine("Data was removed before I could do anything");
+                        NSJSUtil.Print("Data was removed before I could do anything", ConsoleColor.Yellow);
                     }
 
                     //Console.WriteLine(DateTime.Now.Day);
@@ -391,16 +402,17 @@ namespace NSJSDiscordBot
         {
             // first, let's load our configuration file
             var json = "";
+            var vjson = "";
             try
             {
-                Console.WriteLine("Attempting to open settings...");
+                NSJSUtil.Print("Attempting to open settings...", ConsoleColor.White);
                 using (var fs = File.OpenRead("config.json"))
                 using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
                     json = await sr.ReadToEndAsync();
             }
             catch
             {
-                Console.WriteLine("Failure to load, creating...");
+                NSJSUtil.Print("Failure to load, creating...", ConsoleColor.Yellow);
                 using (var fc = File.Create("config.json"))
                     fc.Close();
                 using (var fs = File.OpenRead("config.json"))
@@ -432,20 +444,86 @@ namespace NSJSDiscordBot
 
             }
 
+            try
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var assemblyVersion = assembly.GetName().Version;
+                //Console.WriteLine($"AssemblyVersion {assemblyVersion}");
+
+                //NSJSUtil.Print($"{assemblyVersion} is the application version.", ConsoleColor.Cyan);
+
+                NSJSUtil.Print("Attempting to open version...", ConsoleColor.White);
+                using (var fs = File.OpenRead("version.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    vjson = await sr.ReadToEndAsync();
+
+                if (JsonConvert.DeserializeObject<VersionJson>(vjson).Version != assemblyVersion.ToString())
+                {
+                    NSJSUtil.Print("ERROR with version checks!", ConsoleColor.Red);
+                    throw new Exception("not the same value");
+                }
+            }
+            catch
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var assemblyVersion = assembly.GetName().Version;
+                string newVer = assemblyVersion.ToString();
+
+                NSJSUtil.Print("Failure to load version, creating holder...", ConsoleColor.DarkRed);
+                using (var fc = File.Create("version.json"))
+                    fc.Close();
+                using (var fs = File.OpenRead("version.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    vjson = await sr.ReadToEndAsync();
+
+                StringBuilder sb = new StringBuilder(); // important
+                StringWriter sw = new StringWriter(sb);
+
+                using (JsonWriter writer = new JsonTextWriter(sw))
+                {
+                    writer.Formatting = Formatting.Indented;
+
+                    await writer.WriteStartObjectAsync();
+                    await writer.WritePropertyNameAsync("version");
+                    await writer.WriteValueAsync(newVer);
+                    await writer.WriteEndObjectAsync();
+                }
+
+                using (var fs = File.OpenWrite("version.json"))
+                using (var aasds = new StreamWriter(fs, new UTF8Encoding(false)))
+                    await aasds.WriteAsync(sb);
+
+                using (var fs = File.OpenRead("version.json"))
+                using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
+                    vjson = await sr.ReadToEndAsync();
+
+                NSJSUtil.Print($"{newVer} is the application version.", ConsoleColor.DarkRed);
+            }
+
+            try
+            {
+                versionjson = JsonConvert.DeserializeObject<VersionJson>(vjson);
+                NSJSUtil.Print($"Current version: {versionjson.Version}", ConsoleColor.Green);
+                CoreData.Version = versionjson.Version;
+            }
+            catch
+            {
+                NSJSUtil.Print("Failure to read version...", ConsoleColor.Red);
+            }
 
             // next, let's load the values from that file
             // to our client's configuration
             try
             {
                 cfgjson = JsonConvert.DeserializeObject<ConfigJson>(json);
-                
+
                 CoreData.configJson = cfgjson;
                 CoreData.DiscordToken = "REDACTED";
                 CoreData.Prefix = cfgjson.CommandPrefix;
             }
             catch
             {
-                Console.WriteLine("Failure to read...");
+                NSJSUtil.Print("Failure to read settings...", ConsoleColor.Red);
                 using (var fs = File.OpenRead("config.json"))
                 using (var sr = new StreamReader(fs, new UTF8Encoding(false)))
                     json = await sr.ReadToEndAsync();
@@ -460,12 +538,12 @@ namespace NSJSDiscordBot
                 }
                 catch
                 {
-                    Console.WriteLine("FALIURE");
+                    NSJSUtil.Print("FALIURE", ConsoleColor.Red);
                     System.Environment.FailFast("FAILURE, NRE OCCURED! config file");
                 }
             }
 
-            Console.WriteLine("NO FALIURE");
+            NSJSUtil.Print("NO FALIURE", ConsoleColor.Yellow);
 
 
             cfg = new DiscordConfiguration
@@ -482,7 +560,7 @@ namespace NSJSDiscordBot
                 ReconnectIndefinitely = true
             };
 
-            Console.WriteLine("SUCCESS");
+            NSJSUtil.Print("SUCCESS", ConsoleColor.Green);
 
             // then we want to instantiate our client
             this.Client = new DiscordClient(cfg);
@@ -546,8 +624,7 @@ namespace NSJSDiscordBot
             this.Slash.SlashCommandInvoked += this.Slash_Invoked;
             this.Slash.SlashCommandErrored += this.Slash_CommandErrord;
 
-            
-            Console.WriteLine("BOT READY?");
+            NSJSUtil.Print("----=={ BOT READY? }==----", ConsoleColor.Red);
 
             // finally, let's connect and log in
             try
@@ -561,7 +638,7 @@ namespace NSJSDiscordBot
                 System.Environment.Exit(1);
             }
 
-            Console.WriteLine("YES");
+            NSJSUtil.Print("----=={ YES! } ==----", ConsoleColor.Green);
 
             // and this is to prevent premature quitting
             await Task.Delay(-1);
@@ -573,23 +650,51 @@ namespace NSJSDiscordBot
             // let's log the error details
             args.Context.Client.Logger.LogError(BotEventId, $"{args.Context.User.Username} tried executing '{args.Context.CommandName ?? "<unknown command>"}' but it errored: {args.Exception.GetType()}: {args.Exception.Message ?? "<no message>"}", DateTime.Now);
 
-            // let's check if the error is a result of lack
-            // of required permissions
-            if (args.Exception is SlashExecutionChecksFailedException)
+
+
+            // made error checking for slash commands.
+            if (args.Exception is SlashExecutionChecksFailedException ex)
             {
+
+                foreach (var check in ex.FailedChecks)
+                {
+                    if (check is SlashRequireOwnerAttribute)
+                    {
+                        string listOfOwners = "";
+                        foreach (var owner in Client.CurrentApplication.Owners)
+                        {
+                            listOfOwners += $"<@{owner.Id}> ";
+                        }
+
+                        await args.Context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Only {listOfOwners}can run this command!"));
+                    }
+                    else if (check is SlashRequireGuildAttribute)
+                    {
+                        await args.Context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Can't run this command here!"));
+                    }
+                    else if (check is SlashRequirePermissionsAttribute)
+                    {
+                        await args.Context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Missing required permissions!"));
+                    }
+                    else
+                    {
+                        await args.Context.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Generic Error!"));
+                    }
+                }
+                
                 // yes, the user lacks required permissions, 
                 // let them know
 
-                var emoji = DiscordEmoji.FromName(args.Context.Client, ":no_entry:");
+                //var emoji = DiscordEmoji.FromName(args.Context.Client, ":no_entry:");
 
-                // let's wrap the response into an embed
-                var embed = new DiscordEmbedBuilder
-                {
-                    Title = "Access denied",
-                    Description = $"{emoji} You do not have the permissions required to execute this command.", //{e.Exception.InnerException}
-                    Color = new DiscordColor(0xFF0000) // red
-                };
-                await args.Context.CreateResponseAsync(embed);
+                //// let's wrap the response into an embed
+                //var embed = new DiscordEmbedBuilder
+                //{
+                //    Title = "Access denied",
+                //    Description = $"{emoji} You do not have the permissions required to execute this command.", //{e.Exception.InnerException}
+                //    Color = new DiscordColor(0xFF0000) // red
+                //};
+                //await args.Context.CreateResponseAsync(embed);
             }
             else if (args.Exception is CommandNotFoundException)
             {
@@ -644,6 +749,7 @@ namespace NSJSDiscordBot
         {
             // let's log the name of the guild that was just
             // sent to our client
+
             sender.Logger.LogInformation(BotEventId, $"Guild available: {e.Guild.Name}");
 
             // since this method is not async, let's return
@@ -733,5 +839,11 @@ namespace NSJSDiscordBot
 
         [JsonProperty("channelid")]
         public List<ulong> ChannelID { get; set; }
+    }
+
+    public struct VersionJson
+    {
+        [JsonProperty("version")]
+        public string Version { get; set; }
     }
 }
