@@ -32,6 +32,7 @@ namespace NSJSDiscordBot.Commands
 {
     public class SlashCommands : ApplicationCommandModule
     {
+        // HUH???
         [SlashCommand("testAttribute", "tests the attribute"), SlashRequireGuild]
         public async Task TestAttribute(InteractionContext ctx)
         {

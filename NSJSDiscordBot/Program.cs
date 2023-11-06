@@ -41,13 +41,11 @@ using DSharpPlus.SlashCommands.EventArgs;
 
 using DSharpPlus.SlashCommands.Attributes;
 using System.Runtime.InteropServices;
-//using Discord.Interactions;
-//using Discord; // this is not ment to be here, as dsharp inherits from discord.
 
 
-[assembly: AssemblyVersion("0.9.0.0")]
-[assembly: AssemblyFileVersion("0.9.0.0")]
-[assembly: AssemblyInformationalVersion("0.9.0.0")]
+[assembly: AssemblyVersion("0.10.0.0")]
+[assembly: AssemblyFileVersion("0.10.0.0")]
+[assembly: AssemblyInformationalVersion("0.10.0.0")]
 namespace NSJSDiscordBot
 {
     public static class CoreData
@@ -55,7 +53,7 @@ namespace NSJSDiscordBot
         public static ConfigJson configJson { get; set; }
         public static string DiscordToken = "YOUR TOKEN HERE";
         public static string Prefix = "PREFIX";
-        public static string Version = "0.0.0.0";
+        public static string Version = "0.10.0.0";
     }
 
     public class StoreData
@@ -171,7 +169,7 @@ namespace NSJSDiscordBot
 
     public class Program
     {
-        public static string Version { get; set; }
+        //public static string Version { get; set; }
 
         public bool sentMessage = false;
 
@@ -203,7 +201,7 @@ namespace NSJSDiscordBot
             // let's pass the execution to asynchronous code
             //using (Process p = Process.GetCurrentProcess())
             //    p.PriorityClass = ProcessPriorityClass.High;
-            NSJSUtil.Print("BOOTING NSJS BOT V[FALURE GETTING VERSION]", ConsoleColor.DarkBlue);
+            NSJSUtil.Print($"BOOTING NSJS BOT V{Assembly.GetExecutingAssembly().GetName().Version.Major}.{Assembly.GetExecutingAssembly().GetName().Version.Minor}.{Assembly.GetExecutingAssembly().GetName().Version.Build}.{Assembly.GetExecutingAssembly().GetName().Version.Revision}", ConsoleColor.DarkRed);
                 var prog = new Program();
             prog.Update();
             prog.RunBotAsync().GetAwaiter().GetResult();
@@ -599,11 +597,11 @@ namespace NSJSDiscordBot
             this.Commands.CommandExecuted += this.Commands_CommandExecuted;
             this.Commands.CommandErrored += this.Commands_CommandErrored;
 
-               // !! just addewd this might not wwork
+            // very important in keeping the bot running incase of a error with discord or internet.
             this.Client.Resumed += this.Client_Ready;
             this.Client.SocketErrored += this.SockError;
             this.Client.SocketClosed += this.SockClosed;
-
+            this.Client.UnknownEvent += this.UnkownError;
 
 
             //// let's add a converter for a custom type and a name
@@ -730,6 +728,12 @@ namespace NSJSDiscordBot
             Connection = false;
             sender.Logger.LogError(BotEventId, "Failed to connect to socket");
 
+            return Task.CompletedTask;
+        }
+
+        private Task UnkownError(DiscordClient sender, UnknownEventArgs args)
+        {
+            sender.Logger.LogError(BotEventId, args.EventName);
             return Task.CompletedTask;
         }
 
