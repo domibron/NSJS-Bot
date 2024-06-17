@@ -26,11 +26,19 @@ using DSharpPlus.VoiceNext;
 using System.Security;
 using System.Net.Http.Headers;
 using DSharpPlus.SlashCommands.Attributes;
+using NSJSDiscordBot.Attributes;
 
 namespace NSJSDiscordBot.Commands
 {
     public class SlashCommands : ApplicationCommandModule
     {
+        // HUH???
+        [SlashCommand("testAttribute", "tests the attribute"), SlashRequireGuild]
+        public async Task TestAttribute(InteractionContext ctx)
+        {
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent("hi"));
+        }
+
         [SlashCommand("allbots", "Test the bot")]
         public async Task AllBots(InteractionContext ctx)
         {
@@ -70,7 +78,8 @@ namespace NSJSDiscordBot.Commands
         [SlashCommand("ping", "Test the bot")]
         public async Task Ping(InteractionContext ctx)
         {
-            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Pong!"));
+            int ping = ctx.Client.Ping;
+            await ctx.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder().WithContent($"Pong! \n  took {ping}ms"));
         }
 
         [SlashCommand("help", "get some help")]
