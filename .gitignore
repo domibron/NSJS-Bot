@@ -3,6 +3,8 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+C:\Users\dommc\Desktop\Repos\GitKraken\NSJS-Bot\NSJSDiscordBot\bin\Debug\net6.0\config.json
+
 # User-specific files
 *.rsuser
 *.suo
