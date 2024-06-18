@@ -2,6 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Diagnostics;
 
 
 // [assembly: AssemblyVersion("0.10.0.0")]
@@ -26,6 +27,8 @@ namespace NSJSDiscordBot
 			var bot = new BotProgram();
 			bot.Update();
 			bot.RunBotAsync().GetAwaiter().GetResult();
+
+			Console.WriteLine("Exited out of program, This should not happen...");
 		}
 
 
