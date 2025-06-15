@@ -29,7 +29,7 @@ namespace NSJSDiscordBot.DataFiles.BotTokensAndKeys
         );
 
 
-        public static async Task<bool> GetReadTokenAndKeys()
+        public static async Task<bool> ReadFile()
         {
             object? data = await JsonFileReader.GetJsonDataFromFile<TokenAndKeysJson>(FileNameAndExtension, fileContents);
 

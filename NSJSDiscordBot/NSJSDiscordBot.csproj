@@ -25,7 +25,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="ConfigFileSystem\TokenAndKeysFileManager\" />
     <Folder Include="Util\" />
   </ItemGroup>
 

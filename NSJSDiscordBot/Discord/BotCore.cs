@@ -16,8 +16,9 @@ using DSharpPlus.SlashCommands.EventArgs;
 using Microsoft.Extensions.DependencyInjection;
 using System.Windows.Input;
 using NSJSDiscordBot.DataFiles.BotTokensAndKeys;
+using NSJSDiscordBot.Discord.SlashCommands;
 
-namespace NSJSDiscordBot.Bot_Core
+namespace NSJSDiscordBot.Discord
 {
     public class BotCore
     {
@@ -30,6 +31,7 @@ namespace NSJSDiscordBot.Bot_Core
 
         public async Task InitAndStartBotAsync()
         {
+
             DiscordConfiguration _discordConfiguration = new DiscordConfiguration()
             {
                 // BAD as this required reading the file. there should be a thing to read the file and if its a null we detect it here. Not in file reader.
@@ -92,7 +94,7 @@ namespace NSJSDiscordBot.Bot_Core
 
             // commands go here.
             //_slash.RegisterCommands<FeedBackSlashCommands>();
-
+            _slash.RegisterCommands<NoCatCommands>();
 
             _slash.SlashCommandInvoked += SlashInvoked;
             _slash.SlashCommandErrored += SlashCommandErrord;
@@ -186,7 +188,7 @@ namespace NSJSDiscordBot.Bot_Core
                 var embed = new DiscordEmbedBuilder
                 {
                     Title = "Unkown command",
-                    Description = $"{emoji} I do not reconise this command. perhaps you typed it wrong?", //{e.Exception.InnerException}
+                    Description = $"{emoji} I do not recognise this command. perhaps you typed it wrong?", //{e.Exception.InnerException}
                     Color = new DiscordColor(0xF0FC03)
                 };
                 await args.Context.CreateResponseAsync(embed, true);

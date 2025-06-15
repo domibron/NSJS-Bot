@@ -3,9 +3,10 @@ using System.IO;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Diagnostics;
-using NSJSDiscordBot.Bot_Core;
+using NSJSDiscordBot.Discord;
 using NSJSDiscordBot.DataFiles.BotTokensAndKeys;
 using NSJSDiscordBot.Util;
+using NSJSDiscordBot.DataFiles.TimedMessageFileManager;
 
 
 namespace NSJSDiscordBot
@@ -41,9 +42,14 @@ namespace NSJSDiscordBot
             // this should just go into its own class.
             Util.PrintToConsole.Print("Reading tokens and keys file");
 
-            Task tokenAndKeysTask = TokenAndKeysFileManager.GetReadTokenAndKeys();
+            Task tokenAndKeysTask = TokenAndKeysFileManager.ReadFile();
             tokenAndKeysTask.Wait();
 
+
+            Util.PrintToConsole.Print("Reading timed messages file");
+
+            Task timedMessageReadTask = TimedMessageFileManager.ReadFile();
+            timedMessageReadTask.Wait();
 
             //Util.PrintToConsole.Print("Reading discord config file");
 
@@ -76,26 +82,29 @@ namespace NSJSDiscordBot
 
 
             //Util.PrintToConsole.Print("Starting github api and discord bot");
-            Util.PrintToConsole.Print("Starting discord bot");
 
+            //TimeSystem time = new TimeSystem();
+            //Task updateTime = time.UpdateDeltaTime();
+            //Task.Run(updateTime.GetAwaiter);
+            
+            
             //GithubService githubService = new GithubService();
             //Task githubServiceTask = githubService.SetupClientAsync();
 
+            Util.PrintToConsole.Print("Starting discord bot and other systems");
 
             BotCore botCore = new BotCore();
             Task discordBot = botCore.InitAndStartBotAsync();
 
+            PostTimedMessage postTimedMessage = new PostTimedMessage();
+            Task startPostTimedMessage = postTimedMessage.StartSystem();
 
-            //AutoUpdateIssueMessages autoUpdateIssueMessages = new AutoUpdateIssueMessages();
-            //Task autoUpdateIssueMessagesTask = autoUpdateIssueMessages.StartAutoUpdatingIssues();
 
 
-            TimeSystem time = new TimeSystem();
-            Task updateTime = time.UpdateDeltaTime();
-            Task.Run(updateTime.GetAwaiter);
+
 
             //Task.WaitAll(githubServiceTask, discordBot, autoUpdateIssueMessagesTask);
-            Task.WaitAll(discordBot);
+            Task.WaitAll(discordBot, startPostTimedMessage);
 
         }
 

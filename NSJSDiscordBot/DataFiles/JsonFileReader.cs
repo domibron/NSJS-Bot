@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 using System.Text;
 
@@ -81,7 +82,11 @@ namespace NSJSDiscordBot.DataFiles
             // to our client's configuration
             try
             {
-                T? returnValue = JsonConvert.DeserializeObject<T>(json);
+                // we hard code :3
+                var format = "yyyy-MM-ddTHH:mm:ss.FFFZ"; // your datetime format
+                var dateTimeConverter = new IsoDateTimeConverter { DateTimeFormat = format };
+
+                T? returnValue = JsonConvert.DeserializeObject<T>(json, dateTimeConverter);
                 Util.PrintToConsole.Print(ConsoleColor.Green, "Decrypted file successfully");
                 return returnValue;
             }
