@@ -22,6 +22,7 @@ namespace NSJSDiscordBot
 {
     // help formatters can alter the look of default help command,
     // this particular one replaces the embed with a simple text message.
+    [Obsolete("Not using old command system", false)]
     public class SimpleHelpFormatter : BaseHelpFormatter
     {
         private DiscordEmbedBuilder MessageBuilder { get; }

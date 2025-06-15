@@ -24,4 +24,9 @@
     <PackageReference Include="DSharpPlus.VoiceNext.Natives" Version="1.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ConfigFileSystem\TokenAndKeysFileManager\" />
+    <Folder Include="Util\" />
+  </ItemGroup>
+
 </Project>

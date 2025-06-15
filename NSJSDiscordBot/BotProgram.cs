@@ -41,6 +41,7 @@ using System.Runtime.InteropServices;
 
 namespace NSJSDiscordBot
 {
+	[Obsolete("New system has been implemented", false)]
 	public class BotProgram
 	{
 
@@ -49,7 +50,7 @@ namespace NSJSDiscordBot
 
 		public bool sentMessage = false;
 
-		public readonly EventId BotEventId = new EventId(42, "Bot-Ex01");
+		public readonly EventId BotEventId = new EventId(42, "NSJS Bot");
 
 		public DiscordClient Client { get; set; }
 
